@@ -28,9 +28,9 @@ from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
 # Training Parameters
-learning_rate = 0.01
-num_steps = 30000
-batch_size = 256
+learning_rate = 0.001
+num_steps = 1E3
+batch_size = 64
 
 display_step = 1000
 examples_to_show = 10
@@ -106,6 +106,7 @@ with tf.Session(config=config) as sess:
         batch_x, _ = mnist.test.next_batch(n)
         # Encode and decode the digit image
         g = sess.run(decoder_op, feed_dict={X: np.reshape(batch_x,[n, 28, 28, 1])})
+        g = g.reshape([n, 784])
 
         # Display original images
         for j in range(n):
