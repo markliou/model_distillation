@@ -21,7 +21,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os 
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 # Import MNIST data
 from tensorflow.examples.tutorials.mnist import input_data
@@ -75,7 +75,9 @@ init = tf.global_variables_initializer()
 # Start Training
 # Start a new TF session
 saver = tf.train.Saver()
-with tf.Session() as sess:
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+with tf.Session(config=config) as sess:
 
     # Run the initializer
     sess.run(init)
