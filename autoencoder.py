@@ -29,7 +29,7 @@ mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
 
 # Training Parameters
 learning_rate = 0.001
-num_steps = 1E3
+num_steps = 1000000
 batch_size = 64
 
 display_step = 1000
@@ -40,6 +40,7 @@ X = tf.placeholder("float", [None, 28, 28, 1])
 
 # Building the encoder
 def encoder(x):
+    x = (x / 128) - 1
     layer_1 = tf.layers.conv2d(x, 32, 5, strides = 2, padding = "SAME", activation=tf.nn.sigmoid, kernel_initializer=tf.keras.initializers.glorot_normal, name="en1") #14
     layer_2 = tf.layers.conv2d(layer_1, 32, 5, strides = 2, padding = "SAME", activation=tf.nn.sigmoid, kernel_initializer=tf.keras.initializers.glorot_normal, name="en2") #7
     layer_3 = tf.layers.conv2d(layer_2, 32, 5, strides = 2, padding = "SAME", activation=tf.nn.sigmoid, kernel_initializer=tf.keras.initializers.glorot_normal, name="en3") #4
@@ -54,7 +55,7 @@ def decoder(x):
     layer_2 = tf.layers.conv2d_transpose(layer_1, 32, 5, strides = 2, padding = "SAME", activation=tf.nn.sigmoid, kernel_initializer=tf.keras.initializers.glorot_normal, name="de2") #14
     layer_3 = tf.layers.conv2d_transpose(layer_2, 32, 5, strides = 2, padding = "SAME", activation=tf.nn.sigmoid, kernel_initializer=tf.keras.initializers.glorot_normal, name="de3") #28
     
-    return layer_3
+    return (layer_3 + 1) * 128
 
 # Construct model
 encoder_op = encoder(X)
