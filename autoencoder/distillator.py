@@ -1,3 +1,6 @@
+## We also try to play the "data" module of tensorflow in this example
+##      markliou 20190319
+
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -36,9 +39,13 @@ def encoder(x):
 def decoder(x):
     layer_1 = tf.layers.conv2d_transpose(x, 32, 5, strides = 2, padding = "VALID", activation=tf.nn.sigmoid, kernel_initializer=tf.keras.initializers.glorot_normal, name="de1") #7
     layer_2 = tf.layers.conv2d_transpose(layer_1, 32, 5, strides = 2, padding = "SAME", activation=tf.nn.sigmoid, kernel_initializer=tf.keras.initializers.glorot_normal, name="de2") #14
-    layer_3 = tf.layers.conv2d_transpose(layer_2, 32, 5, strides = 2, padding = "SAME", activation=tf.nn.tanh, kernel_initializer=tf.keras.initializers.glorot_normal, name="de3") #28
+    layer_3 = tf.layers.conv2d_transpose(layer_2, 1, 5, strides = 2, padding = "SAME", activation=tf.nn.tanh, kernel_initializer=tf.keras.initializers.glorot_normal, name="de3") #28
     
     return (layer_3 + 1) * 128
+
+def get_noise_encode_pair(source_folder, target_folder)
+    
+    return 
 
 # Construct model
 encoder_op = encoder(X)
