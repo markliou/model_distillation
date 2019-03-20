@@ -4,7 +4,7 @@ import os
 
 # Training Parameters
 learning_rate = 0.001
-num_steps = 2000
+num_steps = 500000
 batch_size = 32
 
 # Network Parameters
@@ -84,6 +84,8 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 sess = tf.Session(config=config)
 sess.run(tf.global_variables_initializer())
+s_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='ConvNet')
+saver = tf.train.Saver(allow_empty=True, var_list=s_vars)
 sess.graph.finalize() 
 
 from tensorflow.examples.tutorials.mnist import input_data
@@ -95,6 +97,8 @@ for training_step in range(num_steps):
     closs, _ = sess.run([loss_op, train_op])
     if training_step%1000 == 0:
         print('step:{} loss:{}'.format(training_step, closs))
+
+save_path = saver.save(sess, "source")
 
 # test
 acc = sess.run(acc_op, feed_dict={MNIST_imgs: np.array(mnist.test.images),
