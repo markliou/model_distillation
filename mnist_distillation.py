@@ -115,7 +115,7 @@ loss_op = tf.reduce_mean(
             
             # JS divergence https://stackoverflow.com/questions/15880133/jensen-shannon-divergence
             (tfp.distributions.kl_divergence(dis_m, dis_q) + tfp.distributions.kl_divergence(dis_m, dis_s))/2.
-            #
+            
             #  tf.pow((logits_s - logits_q), 2) # MSE works well on logits, but softmax
           )
 # optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
