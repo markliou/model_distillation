@@ -103,14 +103,17 @@ pred_classes = tf.cast(tf.argmax(logits_test, axis=1), tf.float32)
 pred_probas = tf.nn.softmax(logits_test)
 
 # loss 
-# the performance comparing: logis MSE > softmax MSE >>> KL
+# the performance comparing: logis MSE > JS > softmax MSE >>> KL
 q_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='qConvNet')
 dis_q = tf.distributions.Categorical(logits_q)
 dis_s = tf.distributions.Categorical(logits_s)
+dis_m = tf.distributions.Categorical((logits_q + logits_s)/2)
 loss_op = tf.reduce_mean(
             # tf.pow((tf.nn.softmax(logits_s) - tf.nn.softmax(logits_q)) , 2)
             # tf.reduce_sum(tf.nn.softmax(logits_s + 1E-25) * tf.log(tf.nn.softmax(logits_s + 1E-25)/(tf.nn.softmax(logits_q) + 1E-25) + 1E-25), axis = -1) # KL-divergence give NaN error. this would be happened due to the float point computing
-            tfp.distributions.kl_divergence(dis_s, dis_q) # try to use the tensorflow probability module to get KL divergence
+            # tfp.distributions.kl_divergence(dis_s, dis_q) # try to use the tensorflow probability module to get KL divergence
+            # JS divergence https://stackoverflow.com/questions/15880133/jensen-shannon-divergence
+            (tfp.distributions.kl_divergence(dis_m, dis_q) + tfp.distributions.kl_divergence(dis_m, dis_s))/2.
             # tf.pow((logits_s - logits_q), 2) # MSE works well on logits, but softmax
           )
 # optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
@@ -139,16 +142,16 @@ from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("/tmp/data/", source_url='http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/', one_hot=False)
 
 # training
-sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, 1.5, mnist.train.images.shape),
-                                                    MNIST_labels: np.random.gumbel(0, 1.5, mnist.train.labels.shape)}) # initialize tf.data module
+sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, 1., mnist.train.images.shape),
+                                                    MNIST_labels: np.random.gumbel(0, 1., mnist.train.labels.shape)}) # initialize tf.data module
 training_step = 0
 while(1):
     training_step += 1
     closs, _ = sess.run([loss_op, train_op])
     if training_step % 1000 == 0:
         print('step:{} loss:{}  '.format(training_step, closs), end='')
-        sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, 1.5, mnist.train.images.shape),
-                                                            MNIST_labels: np.random.gumbel(0, 1.5, mnist.train.labels.shape)}) # initialize tf.data module
+        sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, 1., mnist.train.images.shape),
+                                                            MNIST_labels: np.random.gumbel(0, 1., mnist.train.labels.shape)}) # initialize tf.data module
                                                             
         # test
         acc = sess.run(acc_op, feed_dict={MNIST_imgs: np.array(mnist.test.images),

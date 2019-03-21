@@ -1,0 +1,24 @@
+step:9976000 loss:0.001706811715848744  Testing Accuracy: 0.8302
+step:9977000 loss:7.629365427419543e-06  Testing Accuracy: 0.8111
+step:9978000 loss:5.209310256759636e-05  Testing Accuracy: 0.8156
+step:9979000 loss:0.0010124086402356625  Testing Accuracy: 0.8235
+step:9980000 loss:0.015259780921041965  Testing Accuracy: 0.8137
+step:9981000 loss:0.38853248953819275  Testing Accuracy: 0.8194
+step:9982000 loss:0.0006384003208950162  Testing Accuracy: 0.8238
+step:9983000 loss:0.1361217051744461  Testing Accuracy: 0.8361
+step:9984000 loss:0.0  Testing Accuracy: 0.8706
+step:9985000 loss:0.041211895644664764  Testing Accuracy: 0.8925
+step:9986000 loss:9.775113539944869e-06  Testing Accuracy: 0.9033
+step:9987000 loss:1.1444026313256472e-05  Testing Accuracy: 0.8981
+step:9988000 loss:5.960462772236497e-07  Testing Accuracy: 0.8799
+step:9989000 loss:0.0  Testing Accuracy: 0.8865
+step:9990000 loss:0.011260057799518108  Testing Accuracy: 0.9042
+step:9991000 loss:0.04192524403333664  Testing Accuracy: 0.8649
+step:9992000 loss:0.2936355471611023  Testing Accuracy: 0.8483
+step:9993000 loss:8.583032467868179e-06  Testing Accuracy: 0.8464
+step:9994000 loss:0.0006538875168189406  Testing Accuracy: 0.8455
+step:9995000 loss:0.02256666123867035  Testing Accuracy: 0.8565
+step:9996000 loss:0.007410064339637756  Testing Accuracy: 0.8579
+step:9997000 loss:1.1801649634435307e-05  Testing Accuracy: 0.8262
+step:9998000 loss:7.390948667307384e-06  Testing Accuracy: 0.8371
+
