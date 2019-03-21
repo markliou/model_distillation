@@ -112,14 +112,16 @@ loss_op = tf.reduce_mean(
             # tf.pow((tf.nn.softmax(logits_s) - tf.nn.softmax(logits_q)) , 2)
             # tf.reduce_sum(tf.nn.softmax(logits_s + 1E-25) * tf.log(tf.nn.softmax(logits_s + 1E-25)/(tf.nn.softmax(logits_q) + 1E-25) + 1E-25), axis = -1) # KL-divergence give NaN error. this would be happened due to the float point computing
             # tfp.distributions.kl_divergence(dis_s, dis_q) # try to use the tensorflow probability module to get KL divergence
+            
             # JS divergence https://stackoverflow.com/questions/15880133/jensen-shannon-divergence
             (tfp.distributions.kl_divergence(dis_m, dis_q) + tfp.distributions.kl_divergence(dis_m, dis_s))/2.
-            # tf.pow((logits_s - logits_q), 2) # MSE works well on logits, but softmax
+            #
+            #  tf.pow((logits_s - logits_q), 2) # MSE works well on logits, but softmax
           )
 # optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 # optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, centered=True, momentum=.8)
-# optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=learning_rate)
-optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=.8)
+optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=learning_rate)
+# optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=.8)
 train_op = optimizer.minimize(loss_op, var_list=q_vars, global_step=tf.train.get_global_step())
 
 # Evaluate the accuracy of the model
