@@ -89,7 +89,7 @@ MNIST_labels = tf.placeholder(tf.float32, [None])
 MNIST_dataset = tf.data.Dataset.from_tensor_slices({'imgs':MNIST_imgs, 'labs':MNIST_labels})
 MNIST_dataset = MNIST_dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=10000))
 MNIST_dataset = MNIST_dataset.prefetch(buffer_size=100) # prefech
-MNIST_dataset.batch(batch_size)
+MNIST_dataset = MNIST_dataset.batch(batch_size)
 MNIST_dataset_iter = MNIST_dataset.make_initializable_iterator()
 MNIST_dataset_fetch = MNIST_dataset_iter.get_next()
 
@@ -120,8 +120,8 @@ loss_op = tf.reduce_mean(
           )
 # optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 # optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate, centered=True, momentum=.8)
-optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=learning_rate)
-# optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=.8)
+# optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=learning_rate)
+optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=.8)
 train_op = optimizer.minimize(loss_op, var_list=q_vars, global_step=tf.train.get_global_step())
 
 # Evaluate the accuracy of the model
