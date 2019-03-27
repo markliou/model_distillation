@@ -119,7 +119,7 @@ loss_op = tf.reduce_mean(
             #  tf.pow((logits_s - logits_q), 2) # MSE works well on logits, but softmax
           )
 # optimizer = tf.train.AdamOptimizer(learning_rate=1E-4)
-optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-4, decay=.8 , centered=True, momentum=.1)
+optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-4, decay=.4 , centered=True, momentum=.05)
 # optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=learning_rate)
 # optimizer = tf.train.MomentumOptimizer(learning_rate=1E-4, momentum=.8)
 train_op = optimizer.minimize(loss_op, var_list=q_vars, global_step=tf.train.get_global_step())
