@@ -6,7 +6,7 @@ import os
 # Training Parameters
 learning_rate = 1E-4
 num_steps = 5000000
-batch_size = 64
+batch_size = 1
 
 # Network Parameters
 num_input = 784 # MNIST data input (img shape: 28*28)
@@ -119,7 +119,7 @@ loss_op = tf.reduce_mean(
             #  tf.pow((logits_s - logits_q), 2) # MSE works well on logits, but softmax
           )
 # optimizer = tf.train.AdamOptimizer(learning_rate=1E-4)
-optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-4, decay=.4 , centered=True, momentum=.05)
+optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-6, decay=.8 , centered=False, momentum=1E-3)
 # optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=learning_rate)
 # optimizer = tf.train.MomentumOptimizer(learning_rate=1E-4, momentum=.8)
 train_op = optimizer.minimize(loss_op, var_list=q_vars, global_step=tf.train.get_global_step())
@@ -144,7 +144,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets("/tmp/data/", source_url='http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/', one_hot=False)
 
 # training
-sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(np.abs(np.random.random(1)), np.abs(np.random.random(1) * 10), [batch_size, 784]),
+sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, np.abs(np.random.random(1) * 5), [batch_size, 784]),
                                                     MNIST_labels: np.random.gumbel(0, 1., [batch_size])}) # initialize tf.data module
 training_step = 0
 while(1):
@@ -152,7 +152,7 @@ while(1):
     closs, _ = sess.run([loss_op, train_op])
     if training_step % 1000 == 0:
         print('step:{} loss:{}  '.format(training_step, closs), end='')
-        sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(np.abs(np.random.random(1)), np.abs(np.random.random(1) * 10), [batch_size, 784]),
+        sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, np.abs(np.random.random(1) * 5), [batch_size, 784]),
                                                             MNIST_labels: np.random.gumbel(0, 1., [batch_size])}) # initialize tf.data module
                                                             
         # test
