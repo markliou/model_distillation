@@ -13,6 +13,9 @@ This script will train a simple fashin mnist model. The model is named "Source".
 This script will train a CNN model using random generated noise, and be approxymated according to the result from Source model.
 
 
+# note
+*. The optimizer using gradients to regulized learning rate would not work well (such as RMSProp, Adma, etc.). This would be the input is always noise which usually give no information. The learning rates will be unstable if the gradient is small. (This will let the learning rate become very huge) 
+
 # License
 MIT
 
