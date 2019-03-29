@@ -121,7 +121,8 @@ loss_op = tf.reduce_mean(
 # optimizer = tf.train.AdamOptimizer(learning_rate=1E-4)
 # optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-6, decay=.99 , centered=False, epsilon=1E-20, momentum=.0)
 # optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=learning_rate)
-optimizer = tf.train.MomentumOptimizer(learning_rate=1E-4, momentum=.8)
+# optimizer = tf.train.MomentumOptimizer(learning_rate=1E-4, momentum=.8)
+optimizer = tf.train.AdadeltaOptimizer(learning_rate=1E-3)
 train_op = optimizer.minimize(loss_op, var_list=q_vars, global_step=tf.train.get_global_step())
 
 # Evaluate the accuracy of the model

@@ -16,6 +16,8 @@ This script will train a CNN model using random generated noise, and be approxym
 # note
 *. The optimizer using gradients to regulized learning rate would not work well (such as RMSProp, Adma, etc.). This would be the input is always noise which usually give no information. The learning rates will be unstable if the gradient is small. (This will let the learning rate become very huge) 
 
+*. Adadelta which could be decoupled with learning rate performs well.
+
 # License
 MIT
 
