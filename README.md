@@ -13,10 +13,12 @@ This script will train a simple fashin mnist model. The model is named "Source".
 This script will train a CNN model using random generated noise, and be approxymated according to the result from Source model.
 
 
-# note
+# notes
 *. The optimizer using gradients to regulized learning rate would not work well (such as RMSProp, Adma, etc.). This would be the input is always noise which usually give no information. The learning rates will be unstable if the gradient is small. (This will let the learning rate become very huge) 
 
-*. Adadelta which could be decoupled with learning rate performs well.
+*. Batch size will influence the loss. Too small size will cause large perturbation. Most time, small batch size would give no information due to the input is noise. Large batch size won't give the subtle information of source model. The batch size set to 16 would be suitable.
+
+*. Gumbel noise would be better than Gaussian and Laplace.
 
 # License
 MIT
