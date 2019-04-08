@@ -155,7 +155,7 @@ acc_op = tf.reduce_mean(tf.cast(tf.equal(tf.reshape(MNIST_labels,tf.shape(pred_c
 noise_gen_var = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='noise_gen')
 noise_gen_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.cast(MNIST_dataset_fetch['labs'], dtype=tf.int32), logits=logits_q))
 noise_opt = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.9, momentum=.0, centered=True)
-#noise_opt = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=learning_rate)
+#noise_opt = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=1E-4)
 noise_train_op = noise_opt.minimize(noise_gen_loss, var_list=noise_gen_var)
 
 # loss 
@@ -163,7 +163,7 @@ noise_train_op = noise_opt.minimize(noise_gen_loss, var_list=noise_gen_var)
 q_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='qConvNet')
 dis_q = tf.distributions.Categorical(logits=logits_q)
 #dis_s = tf.distributions.Categorical(logits=logits_s)
-dis_s = tf.distributions.Categorical(logits=(logits_s * (1 + tf.random.normal(tf.shape(logits_s), 0, .5))))
+dis_s = tf.distributions.Categorical(logits=(logits_s * (1 + tf.random.normal(tf.shape(logits_s), 0, .2))))
 dis_m = tf.distributions.Categorical(probs=(tf.nn.softmax(logits_q) + tf.nn.softmax(logits_s))/2)
 #loss_op = tf.reduce_mean(
 loss_op = tf.reduce_sum(
@@ -208,7 +208,7 @@ sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel
 
 
 ## generate the adversirial attack samples
-for n_training in range(5000):
+for n_training in range(50000):
     _, n_loss = sess.run([noise_train_op, noise_gen_loss])
 ad_samples = np.vstack([sess.run(stimulate_noise) for i in range(500)])
 print('noise generator loss:{}'.format(n_loss))
@@ -242,19 +242,19 @@ while(1):
         freqy = np.random.randint(3,9)
         freqn = np.random.randint(2,4)
         
-        noise_o = np.vstack([cv2.resize(generate_perlin_noise_2d([freqx * freqn, freqy * freqn], [(freqx**np.random.randint(0,2)) * (freqn**np.random.randint(0,2)), (freqy**np.random.randint(0,2)) * (freqn**np.random.randint(0,2))]), dsize=(28, 28), interpolation=cv2.INTER_CUBIC) for x in range(batch_size * 100)])
+        noise_o = np.vstack([cv2.resize(generate_perlin_noise_2d([freqx * freqn, freqy * freqn], [(freqx**np.random.randint(0,2)) * (freqn**np.random.randint(0,2)), (freqy**np.random.randint(0,2)) * (freqn**np.random.randint(0,2))]), dsize=(28, 28), interpolation=cv2.INTER_CUBIC) for x in range(batch_size * 500)])
         noise_o = np.reshape(noise_o, [-1, 784])
         noise_o = np.clip((noise_o - .5), -1., 1.) + .5
         
         ## use the noise as the base of ad samples
-        ad_labs = np.random.randint(10, size=[batch_size * 100])
+        ad_labs = np.random.randint(10, size=[batch_size * 500])
         sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: noise_o,
                                                             MNIST_labels: ad_labs}) # initialize tf.data module
         ## generate the adversirial attack samples
-        for n_training in range(5000):
+        for n_training in range(50000):
             _, n_loss = sess.run([noise_train_op, noise_gen_loss])
         print('noise generator loss:{}'.format(n_loss))
-        ad_samples = np.vstack([sess.run(stimulate_noise) for i in range(100)])
+        ad_samples = np.vstack([sess.run(stimulate_noise) for i in range(500)])
         ## reload the ad samples as the training samples
         sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: ad_samples,
                                                             MNIST_labels: ad_labs}) # initialize tf.data module
