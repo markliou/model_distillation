@@ -212,19 +212,7 @@ sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel
 ## generate the adversirial attack samples
 for n_training in range(100):
     _, n_loss = sess.run([noise_train_op, noise_gen_loss])
-# get the noise samples and the labels
-ad_samples, ad_labs = [], []
-for i in range(100):
-    ad_samples_t, ad_labs_t = sess.run([stimulate_noise, stimulate_tags])
-    ad_samples += [ad_samples_t]
-    ad_labs += [ad_labs_t]
-ad_samples = np.vstack(ad_samples)
-ad_labs = np.hstack(ad_labs)
 print('noise generator loss:{}'.format(n_loss))
-
-## reload the ad samples as the training samples
-sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: ad_samples,
-                                                    MNIST_labels: ad_labs}) # initialize tf.data module
 
 training_step = 0
 highest_acc = 0
@@ -232,7 +220,7 @@ cacc = 0
 while(1):
     training_step += 1
     
-    closs, _ = sess.run([loss_op, train_op])
+    closs, _, _  = sess.run([loss_op, train_op, noise_train_op])
     
     if training_step % 1000 == 0:
         print('step:{} loss:{} '.format(training_step, closs), end='') 
@@ -266,14 +254,6 @@ while(1):
         ## generate the adversirial attack samples
         for n_training in range(1000):
             _, n_loss = sess.run([noise_train_op, noise_gen_loss])
-        # get the noise samples and the labels
-        ad_samples, ad_labs = [], []
-        for i in range(100):
-            ad_samples_t, ad_labs_t = sess.run([stimulate_noise, stimulate_tags])
-            ad_samples += [ad_samples_t]
-            ad_labs += [ad_labs_t]
-        ad_samples = np.vstack(ad_samples)
-        ad_labs = np.hstack(ad_labs)
         print('noise generator loss:{}'.format(n_loss))
 
         
@@ -284,9 +264,6 @@ while(1):
         #ad_samples = np.vstack([sess.run(stimulate_noise) for i in range(100)])
         ## reload the ad samples as the training samples
         
-        sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: ad_samples,
-                                                            MNIST_labels: ad_labs}) # initialize tf.data module
-
 
         #acc = sess.run(acc_op, feed_dict={MNIST_imgs: np.array(mnist.test.images),
         #                                  MNIST_labels: np.array(mnist.test.labels)})
