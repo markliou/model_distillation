@@ -12,22 +12,23 @@ batch_size = 32
 # Network Parameters
 num_input = 784 # MNIST data input (img shape: 28*28)
 num_classes = 10 # MNIST total classes (0-9 digits)
-dropout = 0.8 # Dropout, probability to drop a unit
+dropout = 0.5 # Dropout, probability to drop a unit
 
 # create noise gen
 def noise_gen(x, reuse=False):
-    with tf.variable_scope('noise_gen', reuse=reuse):
-        fc = tf.keras.layers.Dense(784, activation=tf.nn.tanh, kernel_initializer='glorot_uniform')(x)
-        for i in range(8):
-            fc = tf.keras.layers.Dense(64, activation=None, kernel_initializer='glorot_uniform')(fc)
+    with tf.device('/device:GPU:1'):    
+        with tf.variable_scope('noise_gen', reuse=reuse):
+            fc = tf.keras.layers.Dense(784, activation=tf.nn.tanh, kernel_initializer='glorot_uniform')(x)
+            for i in range(8):
+                fc = tf.keras.layers.Dense(64, activation=None, kernel_initializer='glorot_uniform')(fc)
+                fc = tf.layers.dropout(fc, rate=dropout, training=True)
+            fc = tf.keras.layers.Dense(784, activation=None, kernel_initializer='glorot_uniform')(fc)
+            fc = tf.reshape(fc, shape=[-1, 28, 28, 1])
+            for i in range(8):
+                fc = tf.keras.layers.Conv2D(128, 3, padding="SAME", activation=tf.nn.tanh, kernel_initializer='glorot_uniform')(fc)
+            fc = tf.keras.layers.Flatten()(fc)
             fc = tf.layers.dropout(fc, rate=dropout, training=True)
-        fc = tf.keras.layers.Dense(784, activation=tf.nn.tanh, kernel_initializer='glorot_uniform')(fc)
-        fc = tf.reshape(fc, shape=[-1, 28, 28, 1])
-        for i in range(8):
-            fc = tf.keras.layers.Conv2D(128, 3, padding="SAME", activation=tf.nn.tanh, kernel_initializer='glorot_uniform')(fc)
-        fc = tf.keras.layers.Flatten()(fc)
-        fc = tf.layers.dropout(fc, rate=dropout, training=True)
-        out = tf.keras.layers.Dense(784, kernel_initializer='glorot_uniform')(fc)
+            out = tf.keras.layers.Dense(784, kernel_initializer='glorot_uniform')(fc)
     return out
 
 
@@ -59,34 +60,35 @@ def generate_perlin_noise_2d(shape, res):
 
 # Create the neural network
 def conv_net(x, n_classes, dropout, reuse, is_training):
-    # Define a scope for reusing the variables
-    with tf.variable_scope('ConvNet', reuse=reuse):
+    with tf.device('/device:GPU:1'):
+        # Define a scope for reusing the variables
+        with tf.variable_scope('ConvNet', reuse=reuse):
 
-        # MNIST data input is a 1-D vector of 784 features (28*28 pixels)
-        # Reshape to match picture format [Height x Width x Channel]
-        # Tensor input become 4-D: [Batch Size, Height, Width, Channel]
-        x = tf.reshape(x, shape=[-1, 28, 28, 1])
+            # MNIST data input is a 1-D vector of 784 features (28*28 pixels)
+            # Reshape to match picture format [Height x Width x Channel]
+            # Tensor input become 4-D: [Batch Size, Height, Width, Channel]
+            x = tf.reshape(x, shape=[-1, 28, 28, 1])
 
-        # Convolution Layer with 32 filters and a kernel size of 5
-        conv1 = tf.layers.conv2d(x, 32, 5, activation=tf.nn.relu)
-        # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
-        conv1 = tf.layers.max_pooling2d(conv1, 2, 2)
+            # Convolution Layer with 32 filters and a kernel size of 5
+            conv1 = tf.layers.conv2d(x, 32, 5, activation=tf.nn.relu)
+            # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
+            conv1 = tf.layers.max_pooling2d(conv1, 2, 2)
 
-        # Convolution Layer with 64 filters and a kernel size of 3
-        conv2 = tf.layers.conv2d(conv1, 64, 3, activation=tf.nn.relu)
-        # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
-        conv2 = tf.layers.max_pooling2d(conv2, 2, 2)
+            # Convolution Layer with 64 filters and a kernel size of 3
+            conv2 = tf.layers.conv2d(conv1, 64, 3, activation=tf.nn.relu)
+            # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
+            conv2 = tf.layers.max_pooling2d(conv2, 2, 2)
 
-        # Flatten the data to a 1-D vector for the fully connected layer
-        fc1 = tf.contrib.layers.flatten(conv2)
+            # Flatten the data to a 1-D vector for the fully connected layer
+            fc1 = tf.contrib.layers.flatten(conv2)
 
-        # Fully connected layer (in tf contrib folder for now)
-        fc1 = tf.layers.dense(fc1, 1024)
-        # Apply Dropout (if is_training is False, dropout is not applied)
-        fc1 = tf.layers.dropout(fc1, rate=dropout, training=is_training)
+            # Fully connected layer (in tf contrib folder for now)
+            fc1 = tf.layers.dense(fc1, 1024)
+            # Apply Dropout (if is_training is False, dropout is not applied)
+            fc1 = tf.layers.dropout(fc1, rate=dropout, training=is_training)
 
-        # Output layer, class prediction
-        out = tf.layers.dense(fc1, n_classes)
+            # Output layer, class prediction
+            out = tf.layers.dense(fc1, n_classes)
 
     return out
 
@@ -137,7 +139,7 @@ MNIST_dataset_iter = MNIST_dataset.make_initializable_iterator()
 MNIST_dataset_fetch = MNIST_dataset_iter.get_next()
 
 # noise gen
-lambda_n = .5
+lambda_n = .7
 stimulate_tags = MNIST_dataset_fetch['labs']
 stimulate_noise = MNIST_dataset_fetch['imgs'] * (1 - lambda_n) + tf.nn.tanh(noise_gen(tf.concat([MNIST_dataset_fetch['imgs'], tf.reshape(stimulate_tags, [-1, 1] )], axis=-1))) * lambda_n
 
@@ -159,23 +161,23 @@ acc_op = tf.reduce_mean(tf.cast(tf.equal(tf.reshape(MNIST_labels,tf.shape(pred_c
 # loss for noise gen
 noise_gen_var = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='noise_gen')
 noise_gen_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.cast(MNIST_dataset_fetch['labs'], dtype=tf.int32), logits=logits_s))
-noise_opt = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.99, momentum=.6, centered=True)
-#noise_opt = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=1E-4)
-#noise_opt = tf.train.MomentumOptimizer(learning_rate=1E-4, momentum=.8)
+noise_opt = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.99, momentum=.60, centered=True)
+#noise_opt = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=1E-6)
+#noise_opt = tf.train.MomentumOptimizer(learning_rate=1E-5, momentum=.9)
 noise_train_op = noise_opt.minimize(noise_gen_loss, var_list=noise_gen_var)
 
 # loss 
 # the performance comparing: logis MSE > softmax MSE >> JS >> KL
 q_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='qConvNet')
 dis_q = tf.distributions.Categorical(logits_q)
-dis_s = tf.distributions.Categorical(logits_s)
-#dis_s = tf.distributions.Categorical(logits=(logits_s * (1 + tf.random.normal(tf.shape(logits_s), 0, .05))))
+#dis_s = tf.distributions.Categorical(logits_s)
+dis_s = tf.distributions.Categorical(logits=(logits_s * (1 + tf.random.normal(tf.shape(logits_s), 0, .05))))
 dis_m = tf.distributions.Categorical(probs=(tf.nn.softmax(logits_q) + tf.nn.softmax(logits_s))/2)
 loss_op = tf.reduce_mean(
 #loss_op = tf.reduce_sum(
             # tf.pow((tf.nn.softmax(logits_s) - tf.nn.softmax(logits_q)) , 2)
             # tf.reduce_sum(tf.nn.softmax(logits_s + 1E-25) * tf.log(tf.nn.softmax(logits_s + 1E-25)/(tf.nn.softmax(logits_q) + 1E-25) + 1E-25), axis = -1) # KL-divergence give NaN error. this would be happened due to the float point computing
-            tfp.distributions.kl_divergence(dis_s, dis_q) # try to use the tensorflow probability module to get KL divergence
+            tfp.distributions.kl_divergence(dis_q, dis_s) + tfp.distributions.kl_divergence(dis_s, dis_q) # try to use the tensorflow probability module to get KL divergence
             
             # JS divergence https://stackoverflow.com/questions/15880133/jensen-shannon-divergence
             #((tfp.distributions.kl_divergence(dis_s, dis_m) + tfp.distributions.kl_divergence(dis_q, dis_m))/2.) 
@@ -184,7 +186,7 @@ loss_op = tf.reduce_mean(
           )
           #) * (1/(f_gate_count + 1E-9))
 # optimizer = tf.train.AdamOptimizer(learning_rate=1E-4)
-#optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-6, decay=.9, momentum=.0)
+#optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.9, momentum=.0, centered=True)
 #optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=1E-6)
 optimizer = tf.train.MomentumOptimizer(learning_rate=1E-4, momentum=.8)
 # optimizer = tf.train.AdadeltaOptimizer(learning_rate=1E-4)
@@ -240,24 +242,25 @@ while(1):
         print("Testing Accuracy:{} ({})".format(acc, highest_acc))
 
         # initialize new training data
-        freqx = np.random.randint(3,9)
-        freqy = np.random.randint(3,9)
-        freqn = np.random.randint(2,4)
-       
+        freqx = np.random.randint(2,4)
+        freqy = np.random.randint(2,4)
+        freqnx = np.random.randint(2,4)
+        freqny = np.random.randint(2,4)
+
         #(freqx, freqy, freqn) = (7,7,4)
 
-        noise_o = np.vstack([cv2.resize(generate_perlin_noise_2d([freqx * freqn, freqy * freqn], [(freqx**np.random.randint(0,2)) * (freqn**np.random.randint(0,2)), (freqy**np.random.randint(0,2)) * (freqn**np.random.randint(0,2))]), dsize=(28, 28), interpolation=cv2.INTER_CUBIC) for x in range(batch_size * 1000)])
-        #noise_o = np.random.gumbel(0, 1.5, [batch_size * 1000, 784])  
+        #noise_o = np.vstack([cv2.resize(generate_perlin_noise_2d([freqx * freqnx, freqy * freqny], [freqnx, freqny]), dsize=(28, 28), interpolation=cv2.INTER_CUBIC) for x in range(batch_size * 500)])
+        noise_o = np.random.gumbel(0, 1.5, [batch_size * 500, 784])  
         noise_o = np.reshape(noise_o, [-1, 784])
         # noise_o = np.clip((noise_o - .5), -1., 1.) + .5
         
         ## use the noise as the base of ad samples
-        ad_labs = np.random.randint(10, size=[batch_size * 1000])
+        ad_labs = np.random.randint(10, size=[batch_size * 500])
         sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: noise_o,
                                                             MNIST_labels: ad_labs}) # initialize tf.data module
 
         ## generate the adversirial attack samples
-        for n_training in range(3000):
+        for n_training in range(1000):
             _, n_loss = sess.run([noise_train_op, noise_gen_loss])
         print('noise generator loss:{}'.format(n_loss))
 
