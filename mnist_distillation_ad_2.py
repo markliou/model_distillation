@@ -20,11 +20,11 @@ def noise_gen(x, reuse=False):
         with tf.variable_scope('noise_gen', reuse=reuse):
             fc = tf.keras.layers.Dense(128, activation=tf.nn.tanh, kernel_initializer='glorot_uniform')(x)
             for i in range(8):
-                fc = tf.keras.layers.Dense(512, activation=None, kernel_initializer='glorot_uniform')(fc)
+                fc = tf.keras.layers.Dense(512, activation=tf.nn.elu, kernel_initializer='glorot_uniform')(fc)
                 fc = tf.layers.dropout(fc, rate=dropout, training=True)
             fc = tf.keras.layers.Dense(784, activation=tf.nn.elu, kernel_initializer='glorot_uniform')(fc)
             fc = tf.reshape(fc, shape=[-1, 28, 28, 1])
-            for i in range(8):
+            for i in range(16):
                 fc = tf.keras.layers.Conv2D(128, 3, padding="SAME", activation=tf.nn.elu, kernel_initializer='glorot_uniform')(fc)
             fc = tf.keras.layers.Flatten()(fc)
             fc = tf.layers.dropout(fc, rate=dropout, training=True)
@@ -139,13 +139,17 @@ MNIST_dataset_iter = MNIST_dataset.make_initializable_iterator()
 MNIST_dataset_fetch = MNIST_dataset_iter.get_next()
 
 # noise gen
-lambda_n = .8
+lambda_n = .95
 stimulate_tags = MNIST_dataset_fetch['labs']
-stimulate_noise = MNIST_dataset_fetch['imgs'] * (1 - lambda_n) + tf.nn.tanh(noise_gen(tf.concat([MNIST_dataset_fetch['imgs'], tf.reshape(((stimulate_tags - 5) / 5), [-1, 1] )], axis=-1))) * lambda_n
+stimulate_noise = MNIST_dataset_fetch['imgs'] * (1 - lambda_n) + tf.nn.tanh(noise_gen(tf.concat([MNIST_dataset_fetch['imgs'], tf.reshape(((stimulate_tags) / 10), [-1, 1] )], axis=-1))) * lambda_n
 stimulate_noise = tf.clip_by_value(stimulate_noise, -1, 1)
 
 logits_s =  conv_net(stimulate_noise, num_classes, 0, reuse=False, is_training=False)
 logits_q = qconv_net(stimulate_noise, num_classes, 0, reuse=False, is_training=False)
+logits_s_o =  conv_net(MNIST_dataset_fetch['imgs'], num_classes, 0, reuse=True, is_training=False)
+logits_q_o = qconv_net(MNIST_dataset_fetch['imgs'], num_classes, 0, reuse=True, is_training=False)
+
+
 
 logits_test = qconv_net(MNIST_imgs, num_classes, dropout=0, reuse=True, is_training=False)
 
@@ -160,26 +164,29 @@ acc_op = tf.reduce_mean(tf.cast(tf.equal(tf.reshape(MNIST_labels,tf.shape(pred_c
 
 # loss for noise gen
 noise_gen_var = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='noise_gen')
-noise_gen_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.cast(MNIST_dataset_fetch['labs'], dtype=tf.int32), logits=logits_s))
-#noise_gen_loss = tf.reduce_mean(tf.reduce_sum(tf.log(tf.nn.softmax(logits_s) + 1E-9), axis=-1)) # use self-information for untarget attack
-noise_opt = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.9, momentum=.0, centered=True)
+#noise_gen_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.cast(MNIST_dataset_fetch['labs'], dtype=tf.int32), logits=logits_s))
+noise_gen_loss = 1E-4 * tf.reduce_mean(tf.reduce_sum(tf.log(tf.nn.softmax(logits_s) + 1E-9), axis=-1)) # use self-information for untarget attack
+#noise_opt = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.9, momentum=.0, centered=True)
 #noise_opt = tf.contrib.opt.AdamWOptimizer(1E-5, learning_rate=1E-6)
-#noise_opt = tf.train.MomentumOptimizer(learning_rate=5E-6, momentum=.9)
-noise_train_op = noise_opt.minimize(noise_gen_loss, var_list=noise_gen_var)
+noise_opt = tf.train.MomentumOptimizer(learning_rate=5E-5, momentum=.9)
+#noise_train_op = noise_opt.minimize(noise_gen_loss, var_list=noise_gen_var)
 
 # loss 
 # the performance comparing: logis MSE > softmax MSE >> JS >> KL
 q_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='qConvNet')
 dis_q = tf.distributions.Categorical(logits_q)
 dis_s = tf.distributions.Categorical(logits_s)
+dis_q_o = tf.distributions.Categorical(logits_q_o)
+dis_s_o = tf.distributions.Categorical(logits_s_o)
+
 #dis_s = tf.distributions.Categorical(logits=(logits_s * (1 + tf.random.normal(tf.shape(logits_s), 0, .05))))
 dis_m = tf.distributions.Categorical(probs=(tf.nn.softmax(logits_q) + tf.nn.softmax(logits_s))/2)
 loss_op = tf.reduce_mean(
 #loss_op = tf.reduce_sum(
             # tf.pow((tf.nn.softmax(logits_s) - tf.nn.softmax(logits_q)) , 2)
             # tf.reduce_sum(tf.nn.softmax(logits_s + 1E-25) * tf.log(tf.nn.softmax(logits_s + 1E-25)/(tf.nn.softmax(logits_q) + 1E-25) + 1E-25), axis = -1) # KL-divergence give NaN error. this would be happened due to the float point computing
-            tfp.distributions.kl_divergence(dis_q, dis_s) + tfp.distributions.kl_divergence(dis_s, dis_q) # try to use the tensorflow probability module to get KL divergence
-            
+            tfp.distributions.kl_divergence(dis_q, dis_s) + tfp.distributions.kl_divergence(dis_s, dis_q) + # try to use the tensorflow probability module to get KL divergence
+            tfp.distributions.kl_divergence(dis_q_o, dis_s_o) + tfp.distributions.kl_divergence(dis_s_o, dis_q_o)
             # JS divergence https://stackoverflow.com/questions/15880133/jensen-shannon-divergence
             #((tfp.distributions.kl_divergence(dis_s, dis_m) + tfp.distributions.kl_divergence(dis_q, dis_m))/2.) 
             
@@ -187,12 +194,13 @@ loss_op = tf.reduce_mean(
           )
           #) * (1/(f_gate_count + 1E-9))
 #optimizer = tf.train.AdamOptimizer(learning_rate=1E-5)
-#optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.9, momentum=.0, centered=True)
+optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.9, momentum=.0, centered=True)
 #optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=1E-6)
-optimizer = tf.train.MomentumOptimizer(learning_rate=1E-5, momentum=.8)
+#optimizer = tf.train.MomentumOptimizer(learning_rate=1E-4, momentum=.8)
 # optimizer = tf.train.AdadeltaOptimizer(learning_rate=1E-4)
 # optimizer = tf.train.GradientDescentOptimizer(1E-4)
 train_op = optimizer.minimize(loss_op, var_list=q_vars, global_step=tf.train.get_global_step())
+noise_train_op = noise_opt.minimize(( -loss_op ), var_list=noise_gen_var)
 
 # setting the device parameters
 #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -214,13 +222,13 @@ mnist = input_data.read_data_sets("/tmp/data/", source_url='http://fashion-mnist
 ## use the noise as the base of ad samples 
 ad_labs = np.random.randint(10, size=[batch_size * 500])
 sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, .8, [batch_size * 500, 784]),
-                                                    MNIST_labels: ad_labs}) # initialize tf.data module
-
+                                                    MNIST_labels: ad_labs
+                                                    }) # initialize tf.data module
 
 ## generate the adversirial attack samples
-for n_training in range(1000):
+for n_training in range(100):
     _, n_loss = sess.run([noise_train_op, noise_gen_loss])
-print('noise generator loss:{}'.format(n_loss))
+#print('noise generator loss:{}'.format(n_loss))
 
 training_step = 0
 highest_acc = 0
@@ -228,68 +236,59 @@ cacc_flag = 0 # use for determining if the noise generator need to be reinitiali
 pacc = 0
 while(1):
     training_step += 1
-   
-    closs, _  = sess.run([loss_op, train_op])
+  
+    #for i in range(500):
+    #    sess.run(noise_train_op)
+
+    closs, _, nloss, _  = sess.run([loss_op, train_op, noise_gen_loss, noise_train_op])
+    #closs, _, nloss = sess.run([loss_op, train_op, noise_gen_loss])
+
     
     if training_step % 1000 == 0:
         print('step:{} loss:{} '.format(training_step, closs), end='') 
         
         # test
         acc = sess.run(acc_op, feed_dict={MNIST_imgs: np.array(mnist.test.images),
-                                          MNIST_labels: np.array(mnist.test.labels)})
+                                          MNIST_labels: np.array(mnist.test.labels)
+                                          })
 
         if acc > highest_acc :
             highest_acc = acc
         if np.around(pacc, decimals=6) == np.around(acc, decimals=6):
+        #if pacc == acc:
             cacc_flag += 1
         else:
             cacc_flag = 0
         pacc = acc
 
-        # print("Testing Accuracy:{:.2f} highest:({:.2f})".format(acc , highest_acc))
-        print("Testing Accuracy:{} highest:({})".format(acc , highest_acc))
-
-
-        if cacc_flag == 10 :
-            print('shuffle smaples ...')
-            # initialize new training data
-            freqx = np.random.randint(2,4)
-            freqy = np.random.randint(2,4)
-            freqnx = np.random.randint(2,4)
-            freqny = np.random.randint(2,4)
-
-            #(freqx, freqy, freqn) = (7,7,4)
-
-            #noise_o = np.vstack([cv2.resize(generate_perlin_noise_2d([freqx * freqnx, freqy * freqny], [freqnx, freqny]), dsize=(28, 28), interpolation=cv2.INTER_CUBIC) for x in range(batch_size * 500)])
-            noise_o = np.random.gumbel(0, 1., [batch_size * 500, 784])  
-        
-            noise_o = np.reshape(noise_o, [-1, 784])
-            # noise_o = np.clip((noise_o - .5), -1., 1.) + .5
-        
-            ## use the noise as the base of ad samples
+        # perturbate the noise generator
+        if cacc_flag == 5:
+            print('shuffle', end='')
             ad_labs = np.random.randint(10, size=[batch_size * 500])
-            sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: noise_o,
-                                                            MNIST_labels: ad_labs}) # initialize tf.data module
-
-        ## generate the adversirial attack samples
-        for n_training in range(1000):
-            _, n_loss = sess.run([noise_train_op, noise_gen_loss])
-        print('noise generator loss:{}'.format(n_loss))
-
+            sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, .8, [batch_size * 500, 784]),
+                                                                MNIST_labels: ad_labs
+                                                                }) # initialize tf.data module
         
+            ## generate the adversirial attack samples
+            for n_training in range(1000):
+                _, n_loss = sess.run([noise_train_op, noise_gen_loss])
+            #print('noise generator loss:{}'.format(n_loss))
+
+
+        #print("Testing Accuracy:{:.2f} highest:({:.2f})".format(acc , highest_acc))
+        #print("Testing Accuracy:{:.8f} highest:({:.8f})".format(acc , highest_acc))
+        print("Testing Accuracy:{} highest:({}) nloss:{}".format(acc , highest_acc, n_loss))
+
         ## generate the adversirial attack samples
-        #for n_training in range(500):
+        #for n_training in range(100):
         #    _, n_loss = sess.run([noise_train_op, noise_gen_loss])
         #print('noise generator loss:{}'.format(n_loss))
-        #ad_samples = np.vstack([sess.run(stimulate_noise) for i in range(100)])
-        ## reload the ad samples as the training samples
-        
+
 
         #acc = sess.run(acc_op, feed_dict={MNIST_imgs: np.array(mnist.test.images),
         #                                  MNIST_labels: np.array(mnist.test.labels)})
 
 
 sess.close()
-
 
 
