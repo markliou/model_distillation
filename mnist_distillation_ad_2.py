@@ -165,7 +165,7 @@ acc_op = tf.reduce_mean(tf.cast(tf.equal(tf.reshape(MNIST_labels,tf.shape(pred_c
 # loss for noise gen
 noise_gen_var = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='noise_gen')
 #noise_gen_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.cast(MNIST_dataset_fetch['labs'], dtype=tf.int32), logits=logits_s))
-noise_gen_loss = 1E-4 * tf.reduce_mean(tf.reduce_sum(tf.log(tf.nn.softmax(logits_s) + 1E-9), axis=-1)) # use self-information for untarget attack
+noise_gen_loss = 1E-4 * tf.reduce_mean(tf.reduce_sum(tf.log(tf.nn.softmax(logits_q) + 1E-9), axis=-1)) # use self-information for untarget attack
 #noise_opt = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.9, momentum=.0, centered=True)
 #noise_opt = tf.contrib.opt.AdamWOptimizer(1E-5, learning_rate=1E-6)
 noise_opt = tf.train.MomentumOptimizer(learning_rate=5E-5, momentum=.9)
@@ -240,8 +240,8 @@ while(1):
     #for i in range(500):
     #    sess.run(noise_train_op)
 
-    closs, _, nloss, _  = sess.run([loss_op, train_op, noise_gen_loss, noise_train_op])
-    #closs, _, nloss = sess.run([loss_op, train_op, noise_gen_loss])
+    #closs, _, nloss, _  = sess.run([loss_op, train_op, noise_gen_loss, noise_train_op])
+    closs, _, n_loss = sess.run([loss_op, train_op, noise_gen_loss])
 
     
     if training_step % 1000 == 0:
@@ -277,7 +277,7 @@ while(1):
 
         #print("Testing Accuracy:{:.2f} highest:({:.2f})".format(acc , highest_acc))
         #print("Testing Accuracy:{:.8f} highest:({:.8f})".format(acc , highest_acc))
-        print("Testing Accuracy:{} highest:({}) nloss:{}".format(acc , highest_acc, n_loss))
+        print("Testing Accuracy:{} highest:({})".format(acc , highest_acc))
 
         ## generate the adversirial attack samples
         #for n_training in range(100):
