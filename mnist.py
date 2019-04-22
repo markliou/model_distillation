@@ -3,8 +3,8 @@ import numpy as np
 import os
 
 # Training Parameters
-learning_rate = 0.001
-num_steps = 500000
+learning_rate = 1e-5
+num_steps = 50000
 batch_size = 32
 
 # Network Parameters

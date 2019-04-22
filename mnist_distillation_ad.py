@@ -12,7 +12,7 @@ batch_size = 32
 # Network Parameters
 num_input = 784 # MNIST data input (img shape: 28*28)
 num_classes = 10 # MNIST total classes (0-9 digits)
-dropout = .0 # Dropout, probability to drop a unit
+dropout = .5 # Dropout, probability to drop a unit
 
 # create noise gen
 def noise_gen(x, reuse=False):
@@ -25,7 +25,7 @@ def noise_gen(x, reuse=False):
             fc = tf.keras.layers.Dense(784, activation=tf.nn.elu, kernel_initializer='glorot_uniform')(fc)
             fc = tf.reshape(fc, shape=[-1, 28, 28, 1])
             for i in range(8):
-                fc = tf.keras.layers.Conv2D(128, 3, padding="SAME", activation=tf.nn.elu, kernel_initializer='glorot_uniform')(fc)
+                fc = tf.keras.layers.Conv2D(128, 3, padding="SAME", activation=tf.nn.tanh, kernel_initializer='glorot_uniform')(fc)
             fc = tf.keras.layers.Flatten()(fc)
             fc = tf.layers.dropout(fc, rate=dropout, training=True)
             out = tf.keras.layers.Dense(784, kernel_initializer='glorot_uniform')(fc)
@@ -139,7 +139,7 @@ MNIST_dataset_iter = MNIST_dataset.make_initializable_iterator()
 MNIST_dataset_fetch = MNIST_dataset_iter.get_next()
 
 # noise gen
-lambda_n = .8
+lambda_n = .2
 stimulate_tags = MNIST_dataset_fetch['labs']
 stimulate_noise = MNIST_dataset_fetch['imgs'] * (1 - lambda_n) + tf.nn.tanh(noise_gen(tf.concat([MNIST_dataset_fetch['imgs'], tf.reshape(((stimulate_tags - 5) / 5), [-1, 1] )], axis=-1))) * lambda_n
 stimulate_noise = tf.clip_by_value(stimulate_noise, -1, 1)
@@ -162,9 +162,9 @@ acc_op = tf.reduce_mean(tf.cast(tf.equal(tf.reshape(MNIST_labels,tf.shape(pred_c
 noise_gen_var = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='noise_gen')
 noise_gen_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.cast(MNIST_dataset_fetch['labs'], dtype=tf.int32), logits=logits_s))
 #noise_gen_loss = tf.reduce_mean(tf.reduce_sum(tf.log(tf.nn.softmax(logits_s) + 1E-9), axis=-1)) # use self-information for untarget attack
-noise_opt = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.9, momentum=.0, centered=True)
+#noise_opt = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.9, momentum=.0, centered=True)
 #noise_opt = tf.contrib.opt.AdamWOptimizer(1E-5, learning_rate=1E-6)
-#noise_opt = tf.train.MomentumOptimizer(learning_rate=5E-6, momentum=.9)
+noise_opt = tf.train.MomentumOptimizer(learning_rate=5E-6, momentum=.9)
 noise_train_op = noise_opt.minimize(noise_gen_loss, var_list=noise_gen_var)
 
 # loss 
@@ -178,10 +178,10 @@ loss_op = tf.reduce_mean(
 #loss_op = tf.reduce_sum(
             # tf.pow((tf.nn.softmax(logits_s) - tf.nn.softmax(logits_q)) , 2)
             # tf.reduce_sum(tf.nn.softmax(logits_s + 1E-25) * tf.log(tf.nn.softmax(logits_s + 1E-25)/(tf.nn.softmax(logits_q) + 1E-25) + 1E-25), axis = -1) # KL-divergence give NaN error. this would be happened due to the float point computing
-            tfp.distributions.kl_divergence(dis_q, dis_s) + tfp.distributions.kl_divergence(dis_s, dis_q) # try to use the tensorflow probability module to get KL divergence
+            #tfp.distributions.kl_divergence(dis_s, dis_q) # try to use the tensorflow probability module to get KL divergence
             
             # JS divergence https://stackoverflow.com/questions/15880133/jensen-shannon-divergence
-            #((tfp.distributions.kl_divergence(dis_s, dis_m) + tfp.distributions.kl_divergence(dis_q, dis_m))/2.) 
+            ((tfp.distributions.kl_divergence(dis_s, dis_m) + tfp.distributions.kl_divergence(dis_q, dis_m))/2.) 
             
             #tf.pow((logits_s - logits_q), 2) # MSE works well on logits, but softmax
           )
@@ -189,7 +189,7 @@ loss_op = tf.reduce_mean(
 #optimizer = tf.train.AdamOptimizer(learning_rate=1E-5)
 #optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.9, momentum=.0, centered=True)
 #optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=1E-6)
-optimizer = tf.train.MomentumOptimizer(learning_rate=1E-5, momentum=.8)
+optimizer = tf.train.MomentumOptimizer(learning_rate=1E-4, momentum=.8)
 # optimizer = tf.train.AdadeltaOptimizer(learning_rate=1E-4)
 # optimizer = tf.train.GradientDescentOptimizer(1E-4)
 train_op = optimizer.minimize(loss_op, var_list=q_vars, global_step=tf.train.get_global_step())
@@ -250,13 +250,14 @@ while(1):
         print("Testing Accuracy:{} highest:({})".format(acc , highest_acc))
 
 
-        if cacc_flag == 10 :
+        #if cacc_flag == 10 :
+        if True:
             print('shuffle smaples ...')
             # initialize new training data
             freqx = np.random.randint(2,4)
             freqy = np.random.randint(2,4)
-            freqnx = np.random.randint(2,4)
-            freqny = np.random.randint(2,4)
+            freqnx = np.random.randint(2,6)
+            freqny = np.random.randint(2,6)
 
             #(freqx, freqy, freqn) = (7,7,4)
 
