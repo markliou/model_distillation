@@ -7,12 +7,12 @@ import cv2
 # Training Parameters
 learning_rate = 1E-4
 num_steps = 5000000
-batch_size = 32
+batch_size = 128
 
 # Network Parameters
 num_input = 784 # MNIST data input (img shape: 28*28)
 num_classes = 10 # MNIST total classes (0-9 digits)
-dropout = .0 # Dropout, probability to drop a unit
+dropout = .5 # Dropout, probability to drop a unit
 
 # create noise gen
 def noise_gen(x, reuse=False):
@@ -106,11 +106,13 @@ def qconv_net(x, n_classes, dropout, reuse, is_training):
         conv1 = tf.keras.layers.Conv2D(32, 5, activation=tf.nn.elu, kernel_initializer='glorot_normal')(x)
         # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
         conv1 = tf.layers.max_pooling2d(conv1, 2, 2)
+        conv1 = tf.keras.layers.SpatialDropout2D(rate=.2)(conv1, training=is_training)
 
         # Convolution Layer with 64 filters and a kernel size of 3
         conv2 = tf.keras.layers.Conv2D(64, 3, activation=tf.nn.elu, kernel_initializer='glorot_normal')(conv1)
         # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
         conv2 = tf.layers.max_pooling2d(conv2, 2, 2)
+        conv2 = tf.keras.layers.SpatialDropout2D(rate=.2)(conv2, training=is_training)
 
         # Flatten the data to a 1-D vector for the fully connected layer
         fc1 = tf.contrib.layers.flatten(conv2)
@@ -118,7 +120,7 @@ def qconv_net(x, n_classes, dropout, reuse, is_training):
         # Fully connected layer (in tf contrib folder for now)
         fc1 = tf.keras.layers.Dense(512, kernel_initializer='glorot_normal')(fc1)
         # Apply Dropout (if is_training is False, dropout is not applied)
-        fc1 = tf.layers.dropout(fc1, rate=dropout, training=is_training)
+        fc1 = tf.layers.dropout(fc1, rate=.5, training=is_training)
 
         # Output layer, class prediction
         out = tf.layers.dense(fc1, n_classes)
@@ -139,15 +141,18 @@ MNIST_dataset_iter = MNIST_dataset.make_initializable_iterator()
 MNIST_dataset_fetch = MNIST_dataset_iter.get_next()
 
 # noise gen
-lambda_n = .95
+with tf.variable_scope("noise_gen"):
+    lambda_n = tf.Variable(.5)
+    n_eta = tf.Variable(1E-4)
+    n_g_reg = tf.Variable(1E-5) 
 stimulate_tags = MNIST_dataset_fetch['labs']
-stimulate_noise = MNIST_dataset_fetch['imgs'] * (1 - lambda_n) + tf.nn.tanh(noise_gen(tf.concat([MNIST_dataset_fetch['imgs'], tf.reshape(((stimulate_tags) / 10), [-1, 1] )], axis=-1))) * lambda_n
-stimulate_noise = tf.clip_by_value(stimulate_noise, -1, 1)
+stimulate_noise = MNIST_dataset_fetch['imgs'] + tf.nn.sigmoid(noise_gen(tf.concat([MNIST_dataset_fetch['imgs'], tf.reshape(((stimulate_tags) / 10), [-1, 1] )], axis=-1))) * lambda_n
+#stimulate_noise = tf.clip_by_value(stimulate_noise, 0, 1)
 
 logits_s =  conv_net(stimulate_noise, num_classes, 0, reuse=False, is_training=False)
-logits_q = qconv_net(stimulate_noise, num_classes, 0, reuse=False, is_training=False)
+logits_q = qconv_net(stimulate_noise, num_classes, 0, reuse=False, is_training=True)
 logits_s_o =  conv_net(MNIST_dataset_fetch['imgs'], num_classes, 0, reuse=True, is_training=False)
-logits_q_o = qconv_net(MNIST_dataset_fetch['imgs'], num_classes, 0, reuse=True, is_training=False)
+logits_q_o = qconv_net(MNIST_dataset_fetch['imgs'], num_classes, 0, reuse=True, is_training=True)
 
 logits_test = qconv_net(MNIST_imgs, num_classes, dropout=0, reuse=True, is_training=False)
 
@@ -168,10 +173,11 @@ dis_img = tf.distributions.Categorical(tf.reshape(MNIST_dataset_fetch['imgs'], s
 
 #noise_gen_loss = 1E-4 * tf.reduce_mean(tf.reduce_sum(tf.log(tf.nn.softmax(logits_q) + 1E-9), axis=-1)) # use self-information for untarget attack
 noise_gen_loss  = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.cast(MNIST_dataset_fetch['labs'], dtype=tf.int32), logits=logits_s))
-noise_gen_loss += tf.reduce_mean(tfp.distributions.kl_divergence(dis_img, dis_noise))
+#noise_gen_loss += tf.reduce_mean(tfp.distributions.kl_divergence(dis_img, dis_noise))
 #noise_opt = tf.train.RMSPropOptimizer(learning_rate=1E-4, decay=.6, momentum=.0, centered=True)
 #noise_opt = tf.contrib.opt.AdamWOptimizer(1E-5, learning_rate=1E-6)
-noise_opt = tf.train.MomentumOptimizer(learning_rate=1E-5, momentum=.9)
+noise_opt = tf.train.MomentumOptimizer(learning_rate=1E-6, momentum=.9)
+#noise_opt = tf.train.MomentumOptimizer(learning_rate=n_eta, momentum=.9)
 #noise_train_op = noise_opt.minimize(noise_gen_loss, var_list=noise_gen_var)
 
 # loss 
@@ -204,7 +210,7 @@ optimizer = tf.train.MomentumOptimizer(learning_rate=1E-4, momentum=.9)
 # optimizer = tf.train.AdadeltaOptimizer(learning_rate=1E-4)
 # optimizer = tf.train.GradientDescentOptimizer(1E-4)
 train_op = optimizer.minimize(loss_op, var_list=q_vars, global_step=tf.train.get_global_step())
-#noise_gen_loss += -loss_op
+#noise_gen_loss += -loss_op * 1E-5
 noise_train_op = noise_opt.minimize(noise_gen_loss , var_list=noise_gen_var)
 #noise_train_op = noise_opt.minimize(-loss_op, var_list=noise_gen_var)
 
@@ -226,8 +232,8 @@ mnist = input_data.read_data_sets("/tmp/data/", source_url='http://fashion-mnist
 
 # training
 ## use the noise as the base of ad samples 
-ad_labs = np.random.randint(10, size=[batch_size * 10])
-sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, .8, [batch_size * 10, 784]),
+ad_labs = np.random.randint(10, size=[batch_size * 100])
+sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, .5, [batch_size * 100, 784]),
                                                     MNIST_labels: ad_labs
                                                     }) # initialize tf.data module
 
@@ -242,12 +248,11 @@ cacc_flag = 0 # use for determining if the noise generator need to be reinitiali
 pacc = 0
 while(1):
     training_step += 1
-  
     #for i in range(500):
     #    sess.run(noise_train_op)
 
-    closs, _, nloss, _  = sess.run([loss_op, train_op, noise_gen_loss, noise_train_op])
-    #closs, _, n_loss = sess.run([loss_op, train_op, noise_gen_loss])
+    #closs, _, nloss, _  = sess.run([loss_op, train_op, noise_gen_loss, noise_train_op])
+    closs, _, n_loss = sess.run([loss_op, train_op, noise_gen_loss])
 
     
     if training_step % 1000 == 0:

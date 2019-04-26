@@ -131,7 +131,7 @@ logits_q = qconv_net(MNIST_dataset_fetch['imgs'], num_classes, 0, reuse=False, i
 logits_test = qconv_net(MNIST_imgs, num_classes, dropout=0, reuse=True, is_training=False)
 
 # loss gate
-f_gate = tf.pow(tf.clip_by_value((tf.reduce_max(tf.nn.softmax(logits_s), axis=-1) - .5), 0, 1)/.5 , 1.)
+f_gate = tf.pow(tf.clip_by_value((tf.reduce_max(tf.nn.softmax(logits_s), axis=-1) - .0), 0, 1)/1.0 , 1.)
 f_gate_count = tf.reduce_sum(tf.cast(tf.greater(f_gate,0), tf.float32))
 
 # Predictions
@@ -216,8 +216,8 @@ while(1):
         #freqn = np.random.randint(2,4)
         freqx, freqy, freqn = 2, 2, 14
         #noise_o = np.random.laplace(0, np.random.uniform() * 10., [batch_size * 1000, 784])
-        #noise_o = np.random.laplace(0, .2, [batch_size * 1000, 784])
-        noise_o = np.vstack([cv2.resize(generate_perlin_noise_2d([freqx * freqn, freqy * freqn], [(freqx**np.random.randint(0,2)) * (freqn**np.random.randint(0,2)), (freqy**np.random.randint(0,2)) * (freqn**np.random.randint(0,2))]), dsize=(28, 28), interpolation=cv2.INTER_CUBIC) for x in range(batch_size * 1000)])
+        noise_o = np.random.gumbel(0, .2, [batch_size * 1000, 784])
+        #noise_o = np.vstack([cv2.resize(generate_perlin_noise_2d([freqx * freqn, freqy * freqn], [(freqx**np.random.randint(0,2)) * (freqn**np.random.randint(0,2)), (freqy**np.random.randint(0,2)) * (freqn**np.random.randint(0,2))]), dsize=(28, 28), interpolation=cv2.INTER_CUBIC) for x in range(batch_size * 1000)])
         #noise_o = np.vstack([cv2.resize(generate_perlin_noise_2d([freqx * freqn, freqy * freqn], [(freqn),(freqn)]), dsize=(28, 28), interpolation=cv2.INTER_CUBIC) for x in range(batch_size * 1000)])
         #noise_o = cv2.resize(noise_o, dsize=(28,28), interpolation=cv2.INTER_CUBIC)
         noise_o = np.reshape(noise_o, [-1, 784])

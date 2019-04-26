@@ -25,7 +25,8 @@ This script will train a CNN model using random generated noise, and be approxym
 # references
 1. https://arxiv.org/pdf/1711.01768.pdf
 1. https://arxiv.org/abs/1503.02531
-
+1. https://arxiv.org/pdf/1904.04472.pdf
+1. https://www.aaai.org/ocs/index.php/AAAI/AAAI15/paper/download/9487/9685, "Machine Teaching: An Inverse Problem to Machine Learning and an Approach Toward Optimal Education"
 
 # License
 MIT
