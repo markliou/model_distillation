@@ -146,7 +146,7 @@ with tf.variable_scope("noise_gen"):
     n_eta = tf.Variable(1E-4)
     n_g_reg = tf.Variable(1E-5) 
 stimulate_tags = MNIST_dataset_fetch['labs']
-stimulate_noise = MNIST_dataset_fetch['imgs'] + tf.nn.sigmoid(noise_gen(tf.concat([MNIST_dataset_fetch['imgs'], tf.reshape(((stimulate_tags) / 10), [-1, 1] )], axis=-1))) * lambda_n
+stimulate_noise = MNIST_dataset_fetch['imgs'] + tf.nn.sigmoid(noise_gen(tf.concat([MNIST_dataset_fetch['imgs'], tf.reshape(((stimulate_tags) / 10), [-1, 1] )], axis=-1))) * .5
 #stimulate_noise = tf.clip_by_value(stimulate_noise, 0, 1)
 
 logits_s =  conv_net(stimulate_noise, num_classes, 0, reuse=False, is_training=False)
@@ -195,8 +195,8 @@ loss_op = tf.reduce_mean(
 #loss_op = tf.reduce_sum(
             # tf.pow((tf.nn.softmax(logits_s) - tf.nn.softmax(logits_q)) , 2)
             # tf.reduce_sum(tf.nn.softmax(logits_s + 1E-25) * tf.log(tf.nn.softmax(logits_s + 1E-25)/(tf.nn.softmax(logits_q) + 1E-25) + 1E-25), axis = -1) # KL-divergence give NaN error. this would be happened due to the float point computing
-            tfp.distributions.kl_divergence(dis_s, dis_q)  # try to use the tensorflow probability module to get KL divergence
-            #tfp.distributions.kl_divergence(dis_q_o, dis_s_o) + tfp.distributions.kl_divergence(dis_s_o, dis_q_o)
+            tfp.distributions.kl_divergence(dis_s, dis_q) +   # try to use the tensorflow probability module to get KL divergence
+            tfp.distributions.kl_divergence(dis_q_o, dis_s_o) + tfp.distributions.kl_divergence(dis_s_o, dis_q_o)
             # JS divergence https://stackoverflow.com/questions/15880133/jensen-shannon-divergence
             #((tfp.distributions.kl_divergence(dis_s, dis_m) + tfp.distributions.kl_divergence(dis_q, dis_m))/2.) 
             
@@ -206,7 +206,7 @@ loss_op = tf.reduce_mean(
 #optimizer = tf.train.AdamOptimizer(learning_rate=1E-5)
 #optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-8, decay=.9, momentum=.0, centered=True)
 #optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=1E-6)
-optimizer = tf.train.MomentumOptimizer(learning_rate=1E-4, momentum=.9)
+optimizer = tf.train.MomentumOptimizer(learning_rate=1E-7, momentum=.7)
 # optimizer = tf.train.AdadeltaOptimizer(learning_rate=1E-4)
 # optimizer = tf.train.GradientDescentOptimizer(1E-4)
 train_op = optimizer.minimize(loss_op, var_list=q_vars, global_step=tf.train.get_global_step())
@@ -232,8 +232,9 @@ mnist = input_data.read_data_sets("/tmp/data/", source_url='http://fashion-mnist
 
 # training
 ## use the noise as the base of ad samples 
-ad_labs = np.random.randint(10, size=[batch_size * 100])
-sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, .5, [batch_size * 100, 784]),
+ad_labs = np.random.randint(10, size=[batch_size * 5000])
+ad_features = np.random.gumbel(0, .1, [batch_size * 5000, 784])
+sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: ad_features,
                                                     MNIST_labels: ad_labs
                                                     }) # initialize tf.data module
 
@@ -251,8 +252,8 @@ while(1):
     #for i in range(500):
     #    sess.run(noise_train_op)
 
-    #closs, _, nloss, _  = sess.run([loss_op, train_op, noise_gen_loss, noise_train_op])
-    closs, _, n_loss = sess.run([loss_op, train_op, noise_gen_loss])
+    closs, _, nloss, _  = sess.run([loss_op, train_op, noise_gen_loss, noise_train_op])
+    #closs, _, n_loss = sess.run([loss_op, train_op, noise_gen_loss])
 
     
     if training_step % 1000 == 0:
@@ -277,10 +278,18 @@ while(1):
         if True:
             #print('shuffle', end='')
             #ad_labs = np.random.randint(10, size=[batch_size * 100])
-            #sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, 1., [batch_size * 100, 784]),
+            #sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: np.random.gumbel(0, .1, [batch_size * 100, 784]),
             #                                                    MNIST_labels: ad_labs
             #                                                    }) # initialize tf.data module
-        
+            
+            shuffle_id = np.random.randint(5000)
+            ad_labs[shuffle_id] = np.random.randint(10)
+            ad_features[shuffle_id] = np.random.gumbel(0, .1, [784])
+            sess.run(MNIST_dataset_iter.initializer, feed_dict={MNIST_imgs: ad_features,
+                                                                MNIST_labels: ad_labs
+                                                                }) # initialize tf.data module
+
+
             ## generate the adversirial attack samples
             for n_training in range(1000):
                 _, n_loss = sess.run([noise_train_op, noise_gen_loss])
