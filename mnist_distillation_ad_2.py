@@ -149,7 +149,11 @@ with tf.variable_scope("noise_gen"):
     n_eta = tf.Variable(1E-4)
     n_g_reg = tf.Variable(1E-5) 
 stimulate_tags = MNIST_dataset_fetch['labs']
+<<<<<<< HEAD
 stimulate_noise = MNIST_dataset_fetch['imgs'] * .5 + tf.nn.sigmoid(noise_gen(tf.concat([MNIST_dataset_fetch['imgs'], tf.reshape(((stimulate_tags) / 10), [-1, 1] )], axis=-1))) * .5
+=======
+stimulate_noise = MNIST_dataset_fetch['imgs'] + tf.nn.sigmoid(noise_gen(tf.concat([MNIST_dataset_fetch['imgs'], tf.reshape(((stimulate_tags) / 10), [-1, 1] )], axis=-1))) * .5
+>>>>>>> f52640662c3426f410a779a03642bf6ac9fb6144
 #stimulate_noise = tf.clip_by_value(stimulate_noise, 0, 1)
 
 logits_s =  conv_net(stimulate_noise, num_classes, 0, reuse=False, is_training=False)
@@ -199,8 +203,13 @@ loss_op = tf.reduce_mean(
 #loss_op = tf.reduce_sum(
             # tf.pow((tf.nn.softmax(logits_s) - tf.nn.softmax(logits_q)) , 2)
             # tf.reduce_sum(tf.nn.softmax(logits_s + 1E-25) * tf.log(tf.nn.softmax(logits_s + 1E-25)/(tf.nn.softmax(logits_q) + 1E-25) + 1E-25), axis = -1) # KL-divergence give NaN error. this would be happened due to the float point computing
+<<<<<<< HEAD
             tfp.distributions.kl_divergence(dis_s, dis_q) #+   # try to use the tensorflow probability module to get KL divergence
             #tfp.distributions.kl_divergence(dis_q_o, dis_s_o) + tfp.distributions.kl_divergence(dis_s_o, dis_q_o)
+=======
+            tfp.distributions.kl_divergence(dis_s, dis_q) +   # try to use the tensorflow probability module to get KL divergence
+            tfp.distributions.kl_divergence(dis_q_o, dis_s_o) + tfp.distributions.kl_divergence(dis_s_o, dis_q_o)
+>>>>>>> f52640662c3426f410a779a03642bf6ac9fb6144
             # JS divergence https://stackoverflow.com/questions/15880133/jensen-shannon-divergence
             #((tfp.distributions.kl_divergence(dis_s, dis_m) + tfp.distributions.kl_divergence(dis_q, dis_m))/2.) 
             
@@ -210,8 +219,12 @@ loss_op = tf.reduce_mean(
 #optimizer = tf.train.AdamOptimizer(learning_rate=1E-5)
 optimizer = tf.train.RMSPropOptimizer(learning_rate=1E-5, decay=.9, momentum=.0, centered=True)
 #optimizer = tf.contrib.opt.AdamWOptimizer(1E-4, learning_rate=1E-6)
+<<<<<<< HEAD
 #optimizer = tf.train.MomentumOptimizer(learning_rate=1E-4, momentum=.6)
 #optimizer = tf.train.GradientDescentOptimizer(learning_rate=2E-5)
+=======
+optimizer = tf.train.MomentumOptimizer(learning_rate=1E-7, momentum=.7)
+>>>>>>> f52640662c3426f410a779a03642bf6ac9fb6144
 # optimizer = tf.train.AdadeltaOptimizer(learning_rate=1E-4)
 # optimizer = tf.train.GradientDescentOptimizer(1E-4)
 train_op = optimizer.minimize(loss_op, var_list=q_vars, global_step=tf.train.get_global_step())
